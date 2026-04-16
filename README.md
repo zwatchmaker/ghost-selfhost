@@ -27,7 +27,7 @@ One command to deploy a production-ready Ghost instance with Docker, nginx, SSL,
 
 **On the target server:**
 - Fresh Hetzner VPS (Ubuntu 24.04 recommended)
-- Root SSH access
+- SSH access with a user that has sudo privileges (root is only required for the initial bootstrap)
 - A domain with an A record pointing to the VPS IP
 
 ---
@@ -71,10 +71,14 @@ ghost_servers:
   hosts:
     mysite:
       ansible_host: YOUR_VPS_IP
-      ansible_user: root
+      ansible_user: root                                 # root for first deploy only
       ansible_ssh_private_key_file: ~/.ssh/id_ed25519
       client_name: mysite
 ```
+
+> **Note:** `root` is only needed for the initial deploy. The playbook creates a dedicated
+> `ghost` system user and adds it to the docker group. After the first deploy you can
+> change `ansible_user` to `ghost` for all subsequent runs.
 
 ### 4. Set up DNS
 
@@ -171,7 +175,7 @@ ansible-playbook deploy.yml -i inventory.yml --extra-vars "client_name=site2" --
 | Namecheap | Advanced DNS → Add New Record → A Record → Host: @ → Value: VPS IP |
 | Cloudflare | DNS → Add record → Type: A → **proxy OFF (grey cloud)** → Value: VPS IP |
 | Route53 | Hosted Zones → domain → Create record → Type: A → Value: VPS IP |
-| Namecheap | Advanced DNS → A Record → @ → VPS IP |
+| Squarespace | Domains → DNS Settings → Custom Records → Type: A → Value: VPS IP |
 
 ---
 
@@ -179,6 +183,7 @@ ansible-playbook deploy.yml -i inventory.yml --extra-vars "client_name=site2" --
 
 - UFW firewall -- only ports 22, 80, 443 are open
 - fail2ban -- blocks SSH brute force attempts
+- Dedicated `ghost` system user -- Ghost containers never run as root
 - Nginx security headers (X-Frame-Options, X-Content-Type-Options, etc.)
 - No secrets in inventory -- all credentials in ansible-vault encrypted vars files
 - `.gitignore` prevents accidental commit of unencrypted vars
