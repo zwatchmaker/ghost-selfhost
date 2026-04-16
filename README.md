@@ -37,14 +37,14 @@ One command to deploy a production-ready Ghost instance with Docker, nginx, SSL,
 ### 1. Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_GITHUB/ghost-selfhost/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zwatchmaker/ghost-selfhost/main/install.sh)
 cd ~/ghost-selfhost
 ```
 
 Or clone manually:
 
 ```bash
-git clone https://github.com/YOUR_GITHUB/ghost-selfhost.git
+git clone https://github.com/zwatchmaker/ghost-selfhost.git
 cd ghost-selfhost
 ```
 

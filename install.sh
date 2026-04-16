@@ -1,11 +1,11 @@
 #!/bin/bash
 # ghost-selfhost bootstrap
 # One-line install:
-# bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_GITHUB/ghost-selfhost/main/install.sh)
+# bash <(curl -fsSL https://raw.githubusercontent.com/zwatchmaker/ghost-selfhost/main/install.sh)
 
 set -e
 
-REPO="https://github.com/YOUR_GITHUB/ghost-selfhost"
+REPO="https://github.com/zwatchmaker/ghost-selfhost"
 INSTALL_DIR="$HOME/ghost-selfhost"
 
 echo ""
