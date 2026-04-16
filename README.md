@@ -23,7 +23,17 @@ One command to deploy a production-ready Ghost instance with Docker, nginx, SSL,
 
 **On your local machine:**
 - Python 3 (`python3 --version` to check -- comes pre-installed on macOS 12+)
-- Ansible including `ansible-vault` (`brew install ansible` or `pip3 install ansible`)
+- Ansible including `ansible-vault`:
+  ```bash
+  # macOS
+  brew install ansible
+
+  # Ubuntu/Debian
+  sudo apt install ansible-core
+
+  # Any platform via pip
+  pip3 install ansible
+  ```
 - Git (`brew install git` or comes pre-installed on macOS)
 - An SSH key pair -- if you don't have one, generate it:
   ```bash

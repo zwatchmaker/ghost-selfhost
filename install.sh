@@ -22,13 +22,16 @@ check_dep() {
     if command -v brew &>/dev/null; then
       brew install "$1" -q
     elif command -v apt &>/dev/null; then
-      sudo apt install "$1" -y -q
+      sudo apt install -y -q "$1" 2>/dev/null || sudo apt install -y -q ansible-core 2>/dev/null
     else
-      echo "ERROR: Please install $1 manually then re-run."
+      echo "  ⚠️  $1 not found. Install it:"
+      echo "     macOS:          brew install $1"
+      echo "     Ubuntu/Debian:  sudo apt install ansible-core"
+      echo "     Any platform:   pip3 install ansible"
       exit 1
     fi
   else
-    echo "  ✓ $1"
+    echo "  ✓ $1 found"
   fi
 }
 
