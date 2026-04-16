@@ -22,13 +22,31 @@ One command to deploy a production-ready Ghost instance with Docker, nginx, SSL,
 ## Requirements
 
 **On your local machine:**
-- Ansible (`brew install ansible` or `pip install ansible`)
-- Git
+- Python 3 (`python3 --version` to check -- comes pre-installed on macOS 12+)
+- Ansible including `ansible-vault` (`brew install ansible` or `pip3 install ansible`)
+- Git (`brew install git` or comes pre-installed on macOS)
+- An SSH key pair -- if you don't have one, generate it:
+  ```bash
+  ssh-keygen -t ed25519 -C "your@email.com"
+  # Creates ~/.ssh/id_ed25519 (private) and ~/.ssh/id_ed25519.pub (public)
+  ```
 
 **On the target server:**
 - Fresh Hetzner VPS (Ubuntu 24.04 recommended)
-- SSH access with a user that has sudo privileges (root is only required for the initial bootstrap)
+- Your SSH public key added to the VPS -- Hetzner lets you add it at creation time, or manually:
+  ```bash
+  ssh-copy-id root@YOUR_VPS_IP
+  ```
+- SSH access with root for first deploy only (playbook creates a dedicated `ghost` user)
 - A domain with an A record pointing to the VPS IP
+
+**Verify everything is ready before deploying:**
+```bash
+ansible --version          # should show 2.x or higher
+python3 --version          # should show 3.8 or higher
+ssh root@YOUR_VPS_IP       # should connect without a password prompt
+dig yourdomain.com +short  # should return your VPS IP
+```
 
 ---
 

@@ -33,8 +33,21 @@ check_dep() {
 }
 
 echo "Checking dependencies..."
+check_dep python3
 check_dep ansible
 check_dep git
+
+# Check for SSH key
+if [ ! -f "$HOME/.ssh/id_ed25519" ] && [ ! -f "$HOME/.ssh/id_rsa" ]; then
+  echo ""
+  echo "  ⚠️  No SSH key found at ~/.ssh/id_ed25519 or ~/.ssh/id_rsa"
+  echo "  Generate one with:"
+  echo "    ssh-keygen -t ed25519 -C \"your@email.com\""
+  echo "  Then add the public key to your VPS before deploying."
+  echo ""
+else
+  echo "  ✓ SSH key found"
+fi
 
 # Clone or update
 if [ -d "$INSTALL_DIR/.git" ]; then
