@@ -54,6 +54,15 @@ if [ -f "$VARS_FILE" ]; then
   exit 1
 fi
 
+# Remove the plaintext vars file if the script is interrupted before ansible-vault encrypts it
+cleanup_plaintext() {
+  if [ -f "$VARS_FILE" ] && ! head -1 "$VARS_FILE" | grep -q '^\$ANSIBLE_VAULT'; then
+    rm -f "$VARS_FILE"
+    echo "Aborted -- removed unencrypted $VARS_FILE"
+  fi
+}
+trap cleanup_plaintext ERR INT TERM
+
 # Create vars file
 cat > "$VARS_FILE" << EOF
 # vars/${CLIENT_NAME}.yml

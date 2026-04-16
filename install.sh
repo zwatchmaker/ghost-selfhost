@@ -5,7 +5,7 @@
 
 set -e
 
-REPO="https://github.com/zwatchmaker/ghost-selfhost"
+REPO="${GHOST_SELFHOST_REPO:-https://github.com/zwatchmaker/ghost-selfhost}"
 INSTALL_DIR="$HOME/ghost-selfhost"
 
 echo ""
