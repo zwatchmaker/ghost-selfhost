@@ -24,11 +24,13 @@
       shell: docker compose pull ghost
       args:
         chdir: /opt/ghost
+      become_user: ghost
 
     - name: Restart Ghost with new image
       shell: docker compose up -d ghost
       args:
         chdir: /opt/ghost
+      become_user: ghost
 
     - name: Wait for Ghost to be ready
       uri:

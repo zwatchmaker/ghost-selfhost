@@ -38,6 +38,33 @@
           - fail2ban
         state: present
 
+    # ---- DEDICATED USER ----
+    # Ghost runs as a non-root user for security
+    # This user owns all Ghost files and runs the containers
+
+    - name: Create ghost system user
+      user:
+        name: ghost
+        system: yes
+        shell: /bin/bash
+        home: /opt/ghost
+        create_home: yes
+        state: present
+
+    - name: Add ghost user to docker group (after Docker is installed)
+      user:
+        name: ghost
+        groups: docker
+        append: yes
+      ignore_errors: yes  # Docker may not be installed yet -- re-applied after Docker install
+
+    - name: Set up SSH authorized keys for ghost user
+      authorized_key:
+        user: ghost
+        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
+        state: present
+      ignore_errors: yes  # Key may not exist locally -- SSH as root is fine for initial deploy
+
     # ---- DOCKER ----
 
     - name: Check if Docker is installed
@@ -55,6 +82,12 @@
         name: docker
         state: started
         enabled: yes
+
+    - name: Add ghost user to docker group
+      user:
+        name: ghost
+        groups: docker
+        append: yes
 
     # ---- FIREWALL ----
 
@@ -83,6 +116,8 @@
       file:
         path: "{{ item }}"
         state: directory
+        owner: ghost
+        group: ghost
         mode: '0755'
       loop:
         - /opt/ghost
@@ -94,6 +129,9 @@
     - name: Write docker-compose.yml
       copy:
         dest: /opt/ghost/docker-compose.yml
+        owner: ghost
+        group: ghost
+        mode: '0640'
         content: |
           services:
             ghost-db:
@@ -175,11 +213,13 @@
       shell: docker compose pull
       args:
         chdir: /opt/ghost
+      become_user: ghost
 
     - name: Start containers
       shell: docker compose up -d
       args:
         chdir: /opt/ghost
+      become_user: ghost
 
     # ---- NGINX ----
 

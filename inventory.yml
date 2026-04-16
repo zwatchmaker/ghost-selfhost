@@ -16,10 +16,19 @@
 ghost_servers:
   hosts:
 
-    # Add your sites here:
+    # Add one entry per site. The host name must match client_name and your vars filename.
     #
-    # mysite:
-    #   ansible_host: YOUR_VPS_IP
-    #   ansible_user: root
-    #   ansible_ssh_private_key_file: ~/.ssh/id_ed25519
-    #   client_name: mysite
+    # HOW TO ADD A SITE:
+    # 1. Uncomment the block below and fill in your values
+    # 2. Duplicate the block for each additional site
+    # 3. Make sure vars/YOURSITE.yml exists and is encrypted
+    #
+    # NOTE ON ansible_user:
+    # - First deploy: use root (needed to create the ghost user and install packages)
+    # - After first deploy: you can switch to the ghost user created by the playbook
+    #
+    # mysite:                                              # matches client_name and vars/mysite.yml
+    #   ansible_host: 1.2.3.4                             # your Hetzner VPS public IP
+    #   ansible_user: root                                 # use root for first deploy only
+    #   ansible_ssh_private_key_file: ~/.ssh/id_ed25519   # path to your SSH private key
+    #   client_name: mysite                               # must match the host name above
