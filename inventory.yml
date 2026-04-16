@@ -1,0 +1,25 @@
+# inventory.yml
+# List your Ghost VPS instances here
+#
+# HOW TO ADD A NEW SITE:
+# 1. Spin up a Hetzner CAX11 (Ubuntu 24.04)
+# 2. Add it below using the format shown
+# 3. The host name must match the client_name in your vars file
+#
+# EXAMPLE:
+# mysite:
+#   ansible_host: 1.2.3.4          # your VPS IP
+#   ansible_user: root
+#   ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+#   client_name: mysite             # must match vars/mysite.yml
+
+ghost_servers:
+  hosts:
+
+    # Add your sites here:
+    #
+    # mysite:
+    #   ansible_host: YOUR_VPS_IP
+    #   ansible_user: root
+    #   ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+    #   client_name: mysite

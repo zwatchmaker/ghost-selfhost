@@ -1,0 +1,274 @@
+---
+# ghost-selfhost — deploy.yml
+# Deploys a production Ghost instance on a fresh Ubuntu 24.04 VPS
+#
+# Usage:
+#   ansible-playbook deploy.yml -i inventory.yml \
+#     --extra-vars "client_name=mysite" \
+#     --ask-vault-pass
+#
+# See README.md for full setup instructions.
+
+- name: Deploy Ghost
+  hosts: "{{ client_name }}"
+  become: true
+  vars_files:
+    - vars/{{ client_name }}.yml
+
+  tasks:
+
+    # ---- SYSTEM ----
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install system packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+          - ufw
+          - fail2ban
+        state: present
+
+    # ---- DOCKER ----
+
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      when: docker_check.rc != 0
+
+    - name: Enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ---- FIREWALL ----
+
+    - name: Allow SSH, HTTP, HTTPS
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+      loop: ["22", "80", "443"]
+
+    - name: Enable UFW (deny by default)
+      ufw:
+        state: enabled
+        policy: deny
+
+    # ---- FAIL2BAN ----
+
+    - name: Enable fail2ban
+      systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    # ---- DIRECTORIES ----
+
+    - name: Create Ghost directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/ghost
+        - /opt/ghost/db
+        - /opt/ghost/content
+
+    # ---- DOCKER COMPOSE ----
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: /opt/ghost/docker-compose.yml
+        content: |
+          services:
+            ghost-db:
+              image: mysql:8
+              container_name: ghost-db-{{ client_name }}
+              hostname: ghost-db
+              security_opt:
+                - no-new-privileges:true
+              healthcheck:
+                test: mysqladmin -p$$MYSQL_ROOT_PASSWORD ping -h localhost
+                interval: 20s
+                start_period: 30s
+                timeout: 10s
+                retries: 5
+              environment:
+                - TZ={{ timezone }}
+                - MYSQL_ROOT_PASSWORD={{ mysql_root_password }}
+                - MYSQL_DATABASE=ghost
+                - MYSQL_USER=ghostuser
+                - MYSQL_PASSWORD={{ mysql_password }}
+              volumes:
+                - /opt/ghost/db:/var/lib/mysql
+              restart: unless-stopped
+
+            ghost:
+              image: ghost:latest
+              container_name: ghost-{{ client_name }}
+              healthcheck:
+                test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/2368' || exit 1
+                interval: 10s
+                timeout: 5s
+                retries: 3
+                start_period: 90s
+              security_opt:
+                - no-new-privileges:true
+              environment:
+                database__client: mysql
+                database__connection__host: ghost-db
+                database__connection__user: ghostuser
+                database__connection__password: {{ mysql_password }}
+                database__connection__database: ghost
+                url: https://{{ domain }}
+                mail__transport: SMTP
+                mail__from: {{ mail_from }}
+                mail__options__host: {{ smtp_host }}
+                mail__options__port: {{ smtp_port | default(587) }}
+                mail__options__secure: "false"
+                mail__options__auth__user: {{ smtp_user }}
+                mail__options__auth__pass: {{ smtp_password }}
+                NODE_ENV: production
+              volumes:
+                - /opt/ghost/content:/var/lib/ghost/content
+              ports:
+                - "{{ ghost_port }}:2368"
+              depends_on:
+                ghost-db:
+                  condition: service_healthy
+              restart: unless-stopped
+
+            watchtower:
+              image: containrrr/watchtower
+              container_name: watchtower-{{ client_name }}
+              volumes:
+                - /var/run/docker.sock:/var/run/docker.sock
+              environment:
+                - WATCHTOWER_CLEANUP=true
+                - WATCHTOWER_SCHEDULE=0 0 4 * * 1
+                - WATCHTOWER_INCLUDE_STOPPED=false
+                - WATCHTOWER_NOTIFICATIONS=email
+                - WATCHTOWER_NOTIFICATION_EMAIL_FROM={{ mail_from }}
+                - WATCHTOWER_NOTIFICATION_EMAIL_TO={{ admin_email }}
+                - WATCHTOWER_NOTIFICATION_EMAIL_SERVER={{ smtp_host }}
+                - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT={{ smtp_port | default(587) }}
+                - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER={{ smtp_user }}
+                - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD={{ smtp_password }}
+              restart: unless-stopped
+
+    - name: Pull latest images
+      shell: docker compose pull
+      args:
+        chdir: /opt/ghost
+
+    - name: Start containers
+      shell: docker compose up -d
+      args:
+        chdir: /opt/ghost
+
+    # ---- NGINX ----
+
+    - name: Write nginx config
+      copy:
+        dest: /etc/nginx/sites-available/{{ client_name }}
+        content: |
+          server {
+              listen 80;
+              server_name {{ domain }};
+
+              add_header X-Frame-Options "SAMEORIGIN" always;
+              add_header X-Content-Type-Options "nosniff" always;
+              add_header X-XSS-Protection "1; mode=block" always;
+              add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+              location / {
+                  proxy_pass http://localhost:{{ ghost_port }};
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_buffering off;
+                  client_max_body_size 50m;
+              }
+          }
+
+    - name: Enable site
+      file:
+        src: /etc/nginx/sites-available/{{ client_name }}
+        dest: /etc/nginx/sites-enabled/{{ client_name }}
+        state: link
+
+    - name: Remove default nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+
+    - name: Test nginx config
+      command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
+
+    # ---- SSL ----
+
+    - name: Check for existing SSL cert
+      stat:
+        path: /etc/letsencrypt/live/{{ domain }}/fullchain.pem
+      register: ssl_cert
+
+    - name: Obtain SSL certificate
+      shell: |
+        certbot --nginx -d {{ domain }} \
+          --non-interactive \
+          --agree-tos \
+          --email {{ admin_email }} \
+          --redirect
+      when: not ssl_cert.stat.exists
+
+    - name: Set up SSL auto-renewal cron
+      cron:
+        name: "Certbot renewal"
+        minute: "0"
+        hour: "3"
+        weekday: "1"
+        job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+
+    # ---- DONE ----
+
+    - name: Wait for Ghost to be ready
+      uri:
+        url: "https://{{ domain }}"
+        status_code: 200
+        validate_certs: yes
+      register: result
+      until: result.status == 200
+      retries: 15
+      delay: 10
+
+    - name: Deployment complete
+      debug:
+        msg:
+          - "Ghost is live!"
+          - "Site:  https://{{ domain }}"
+          - "Admin: https://{{ domain }}/ghost"
+          - "Ghost auto-updates every Monday at 4am via Watchtower"
+          - "SSL auto-renews every Monday at 3am"

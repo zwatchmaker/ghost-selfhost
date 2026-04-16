@@ -1,0 +1,50 @@
+# vars/example.yml
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file:     cp vars/example.yml vars/mysite.yml
+# 2. Fill in all values below
+# 3. Encrypt it:         ansible-vault encrypt vars/mysite.yml
+# 4. Add your VPS to inventory.yml
+# 5. Deploy:             ansible-playbook deploy.yml -i inventory.yml --extra-vars "client_name=mysite" --ask-vault-pass
+#
+# NOTES:
+# - client_name must be lowercase, no spaces (e.g. johnblog, watchshop, mysite)
+# - client_name must match the filename (vars/mysite.yml -> client_name: mysite)
+# - ghost_port must be unique per VPS if running multiple sites on the same server
+# - domain must have an A record pointing to your VPS IP BEFORE running the playbook
+# - admin_email is used for SSL certificate expiry notifications (Let's Encrypt)
+# - mail_from domain must be verified with your email provider (e.g. AWS SES)
+
+# ---- SITE ----
+client_name: mysite                    # change this -- must match filename
+domain: blog.yourdomain.com            # your domain or subdomain
+ghost_port: 2368                       # port Ghost runs on (increment if multi-tenant: 2368, 2369, 2370...)
+timezone: America/New_York             # see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+admin_email: you@yourdomain.com        # your email -- used for SSL cert notifications
+
+# ---- EMAIL ----
+# Ghost uses SMTP for transactional emails (invites, password resets)
+# Recommended: AWS SES, Mailgun, Postmark, or SendGrid
+#
+# AWS SES example:
+#   smtp_host: email-smtp.us-east-1.amazonaws.com
+#   smtp_port: 587
+#   smtp_user: YOUR_SES_SMTP_ACCESS_KEY
+#   smtp_password: YOUR_SES_SMTP_SECRET_KEY
+#
+# Gmail example (for low volume testing only):
+#   smtp_host: smtp.gmail.com
+#   smtp_port: 587
+#   smtp_user: your@gmail.com
+#   smtp_password: your-app-password    # use an App Password, not your Gmail password
+#
+mail_from: noreply@yourdomain.com      # must be verified with your SMTP provider
+smtp_host: email-smtp.us-east-1.amazonaws.com
+smtp_port: 587
+smtp_user: YOUR_SMTP_USERNAME
+smtp_password: YOUR_SMTP_PASSWORD
+
+# ---- DATABASE ----
+# Strong unique passwords -- these are encrypted by ansible-vault
+mysql_root_password: CHANGE_ME_USE_A_STRONG_RANDOM_PASSWORD
+mysql_password: CHANGE_ME_USE_A_DIFFERENT_STRONG_PASSWORD

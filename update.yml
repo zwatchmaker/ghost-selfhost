@@ -1,0 +1,56 @@
+---
+# ghost-selfhost — update.yml
+# Pulls latest Ghost image and restarts with zero downtime
+#
+# Usage:
+#   ansible-playbook update.yml -i inventory.yml \
+#     --extra-vars "client_name=mysite" \
+#     --ask-vault-pass
+
+- name: Update Ghost
+  hosts: "{{ client_name }}"
+  become: true
+  vars_files:
+    - vars/{{ client_name }}.yml
+
+  tasks:
+
+    - name: Get current Ghost version
+      shell: docker inspect ghost-{{ client_name }} --format='{% raw %}{{index .Config.Labels "org.opencontainers.image.version"}}{% endraw %}' 2>/dev/null || echo "unknown"
+      register: version_before
+      ignore_errors: yes
+
+    - name: Pull latest Ghost image
+      shell: docker compose pull ghost
+      args:
+        chdir: /opt/ghost
+
+    - name: Restart Ghost with new image
+      shell: docker compose up -d ghost
+      args:
+        chdir: /opt/ghost
+
+    - name: Wait for Ghost to be ready
+      uri:
+        url: "https://{{ domain }}"
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 10
+
+    - name: Get new Ghost version
+      shell: docker inspect ghost-{{ client_name }} --format='{% raw %}{{index .Config.Labels "org.opencontainers.image.version"}}{% endraw %}' 2>/dev/null || echo "unknown"
+      register: version_after
+      ignore_errors: yes
+
+    - name: Clean up old images
+      shell: docker image prune -f
+
+    - name: Update complete
+      debug:
+        msg:
+          - "Ghost updated successfully"
+          - "From: {{ version_before.stdout }}"
+          - "To:   {{ version_after.stdout }}"
+          - "Site: https://{{ domain }}"

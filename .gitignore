@@ -1,0 +1,14 @@
+# Secrets -- never commit unencrypted vars files
+# Only vars/example.yml is safe to commit
+vars/*.yml
+!vars/example.yml
+
+# Ansible retry files
+*.retry
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
